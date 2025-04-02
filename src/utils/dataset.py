@@ -4,7 +4,7 @@ from PIL import Image
 import io
 from datasets import load_dataset
 
-def load_foodseg103(type:str="all") -> pd.DataFrame:
+def load_foodseg103(type:str="all", sample_size:int=None) -> pd.DataFrame:
     """
     Loads the FoodSeg103 dataset as a Pandas DataFrame.
 
@@ -29,12 +29,15 @@ def load_foodseg103(type:str="all") -> pd.DataFrame:
     valid_types = {"train", "validation", "all"}
     if type not in valid_types:
         raise ValueError(f"Invalid type '{type}'. Expected one of: {valid_types}")
-    food_seg_103 = load_dataset("EduardoPacheco/FoodSeg103")
+    food_seg_103 = load_dataset("EduardoPacheco/FoodSeg103", )
     if type == "all":
         train_df = food_seg_103["train"].to_pandas()
         validation_df = food_seg_103["validation"].to_pandas()
-        return pd.concat([train_df, validation_df])
-    return food_seg_103[type].to_pandas()
+        image_dataset = pd.concat([train_df, validation_df])
+    else:
+        image_dataset = food_seg_103[type].to_pandas() 
+    
+    return image_dataset if sample_size is None else image_dataset.sample(sample_size).reset_index(drop=True)
 
 def decode_image_from_bytes(byte_data: dict) -> np.ndarray:
     """
