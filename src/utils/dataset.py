@@ -4,7 +4,7 @@ from PIL import Image
 import io
 from datasets import load_dataset
 
-def load_foodseg103(type:str="all", sample_size:int=None) -> pd.DataFrame:
+def load_foodseg103(type:str="all", sample_size:int=None, random_state=42) -> pd.DataFrame:
     """
     Loads the FoodSeg103 dataset as a Pandas DataFrame.
 
@@ -37,7 +37,7 @@ def load_foodseg103(type:str="all", sample_size:int=None) -> pd.DataFrame:
     else:
         image_dataset = food_seg_103[type].to_pandas() 
     
-    return image_dataset if sample_size is None else image_dataset.sample(sample_size).reset_index(drop=True)
+    return image_dataset if sample_size is None else image_dataset.sample(sample_size, random_state=random_state).reset_index(drop=True)
 
 def decode_image_from_bytes(byte_data: dict) -> np.ndarray:
     """
@@ -54,5 +54,5 @@ def decode_image_from_bytes(byte_data: dict) -> np.ndarray:
         A NumPy array representing the decoded image.
     """
     image_bytes = byte_data["bytes"]
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    image = Image.open(io.BytesIO(image_bytes))
     return np.array(image)
