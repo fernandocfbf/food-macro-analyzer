@@ -1,43 +1,45 @@
 import pandas as pd
+from typing import Optional
 import numpy as np
 from PIL import Image
 import io
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets, DatasetDict
 
-def load_foodseg103(type:str="all", sample_size:int=None, random_state=42) -> pd.DataFrame:
+
+def load_foodseg103_splits(sample_size:int=None, random_state:Optional[int]=42) -> pd.DataFrame:
     """
     Loads the FoodSeg103 dataset as a Pandas DataFrame.
 
     Parameters
     ----------
-    type : str, optional
-        Specifies which subset of the dataset to load. Options:
-        - "train": Loads only the training set.
-        - "validation": Loads only the validation set.
-        - "all" (default): Loads both training and validation sets, concatenated into a single DataFrame.
-    
+    sample_size : int, optional
+        The number of samples to return. If None, all samples are returned.
+    random_state : int, optional
+        Random seed for reproducibility when sampling.
+
     Returns
     -------
     pd.DataFrame
         A Pandas DataFrame containing the requested subset of the FoodSeg103 dataset.
-    
-    Raises
-    ------
-    ValueError
-        If an invalid `type` is provided.
     """
-    valid_types = {"train", "validation", "all"}
-    if type not in valid_types:
-        raise ValueError(f"Invalid type '{type}'. Expected one of: {valid_types}")
     food_seg_103 = load_dataset("EduardoPacheco/FoodSeg103")
-    if type == "all":
-        train_df = food_seg_103["train"].to_pandas()
-        validation_df = food_seg_103["validation"].to_pandas()
-        image_dataset = pd.concat([train_df, validation_df])
-    else:
-        image_dataset = food_seg_103[type].to_pandas() 
-    
-    return image_dataset if sample_size is None else image_dataset.sample(sample_size, random_state=random_state).reset_index(drop=True)
+    splits = [ds for ds in food_seg_103.values()]
+    merged_dataset = concatenate_datasets(splits)
+    merged_dataset = merged_dataset.shuffle(seed=random_state)
+
+    train_test = merged_dataset.train_test_split(test_size=0.3, seed=42)
+    val_test = train_test['test'].train_test_split(test_size=0.5, seed=42)
+
+    train_dataset = train_test['train']        # 70%
+    val_dataset = val_test['train']            # 15%
+    test_dataset = val_test['test']            # 15%
+
+    # Optional: assemble into DatasetDict
+    return DatasetDict({
+        'train': train_dataset,
+        'validation': val_dataset,
+        'test': test_dataset
+    })
 
 def decode_image_from_bytes(byte_data: dict) -> np.ndarray:
     """
