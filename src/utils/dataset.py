@@ -30,11 +30,9 @@ def load_foodseg103_splits(sample_size:int=None, random_state:Optional[int]=42) 
     train_test = merged_dataset.train_test_split(test_size=0.3, seed=42)
     val_test = train_test['test'].train_test_split(test_size=0.5, seed=42)
 
-    train_dataset = train_test['train']        # 70%
-    val_dataset = val_test['train']            # 15%
-    test_dataset = val_test['test']            # 15%
-
-    # Optional: assemble into DatasetDict
+    train_dataset = train_test['train']        
+    val_dataset = val_test['train']           
+    test_dataset = val_test['test']           
     return DatasetDict({
         'train': train_dataset,
         'validation': val_dataset,
