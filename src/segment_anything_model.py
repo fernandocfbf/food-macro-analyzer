@@ -93,7 +93,7 @@ class SAMModel:
             merge_similar : bool
                 Whether to merge similar masks based on IoU.
         """
-        segmentation_masks = self.generate_masks(image, merge_similar)
+        segmentation_masks = self.generate_masks(image.copy(), merge_similar)
         detections = sv.Detections.from_sam(segmentation_masks)
         annotated_image = self.mask_annotator.annotate(image.copy(), detections)
         sv.plot_images_grid(
