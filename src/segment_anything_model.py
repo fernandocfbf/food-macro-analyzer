@@ -7,7 +7,7 @@ import supervision as sv
 from src.utils.segmentation import compute_iou
 
 class SAMModel:
-    def __init__(self, model_path:str="src/model/sam_vit_b_01ec64.pth", model_type:str="vit_b"):
+    def __init__(self, model_type:str="vit_b"):
         """
         Initialize the SAMModel with the given model path and type.
 
@@ -16,14 +16,22 @@ class SAMModel:
             model_path : str 
                 Path to the SAM model weights file.
             model_type : str 
-                Type of the SAM model (e.g., "vit_b", "vit_l", "vit_h").
+                Type of the SAM model (e.g., "vit_b", "vit_h").
         """
-        self.model_path = model_path
         self.model_type = model_type
+        self.model_path = self._get_model_path(model_type)
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self._load_model()
         self.mask_generator = SamAutomaticMaskGenerator(self.model)
         self.mask_annotator = sv.MaskAnnotator(color_lookup=sv.ColorLookup.INDEX)
+    
+    def _get_model_path(self, model_type:str) -> str:
+        #TODO: adicionar docstring
+        available_models = {
+            "vit_b": "src/model/sam_vit_b_01ec64.pth",
+            "vit_h": "src/model/sam_vit_h_4b8939.pth"
+        }
+        return available_models[model_type]
 
     def _load_model(self):
         """
@@ -61,7 +69,7 @@ class SAMModel:
                 filtered_sam_results.append(mask_info)
         return filtered_sam_results
 
-    def generate_masks(self, image:np.ndarray, merge_similar:bool=False) -> list[dict]:
+    def predict_segmentation_mask(self, image:np.ndarray, merge_similar:bool=False) -> list[dict]:
         """
         Generate masks for the given image using the SAM model.
 
@@ -82,7 +90,11 @@ class SAMModel:
             return self._merge_similar_masks(masks) 
         return masks
     
-    def preview_image_segmentation(self, image:np.ndarray, merge_similar:bool=False) -> None:
+    def generate_annotated_image(self, image:np.ndarray, masks_list:list[dict]):
+        detections = sv.Detections.from_sam(masks_list)
+        return self.mask_annotator.annotate(image, detections)
+    
+    def preview_image_segmentation(self, image:np.ndarray, masks_list:list[dict], merge_similar:bool=False) -> None:
         """
         Preview the segmentation of the given image using the SAM model.
 
@@ -90,12 +102,12 @@ class SAMModel:
         ----------
             image : np.ndarray 
                 Input image in the form of a NumPy array.
+            mask: np.ndarray
+                The predicted segmentation mask.
             merge_similar : bool
                 Whether to merge similar masks based on IoU.
         """
-        segmentation_masks = self.generate_masks(image.copy(), merge_similar)
-        detections = sv.Detections.from_sam(segmentation_masks)
-        annotated_image = self.mask_annotator.annotate(image.copy(), detections)
+        annotated_image = self.generate_annotated_image(image, masks_list)
         sv.plot_images_grid(
             images=[image, annotated_image],
             grid_size=(1, 2),

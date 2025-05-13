@@ -77,7 +77,7 @@ def predict_image_segmentation(model, image, transform, device="cuda"):
     predicted = upsampled_logits.argmax(dim=1)[0].cpu().numpy()
     return predicted
 
-def _generate_pallete_for_mask(mask):
+def generate_pallete_for_mask(mask):
     color_seg = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
     for label, color in PALLETE.items():
         color_seg[mask == label, :] = color
@@ -95,7 +95,7 @@ def predict_random_images(model, transform, dataset, num_images=5, device="cuda"
     for idx in random_images_idx_list:
         image = np.array(dataset.dataset[idx]["image"])
         mask = predict_image_segmentation(model, image, transform, device)
-        color_seg = _generate_pallete_for_mask(mask)
+        color_seg = generate_pallete_for_mask(mask)
         blend = apply_mask_on_image(image, color_seg)
         fig, axs = plt.subplots(1, 3, figsize=(16, 12))
 

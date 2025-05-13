@@ -1,13 +1,11 @@
 import torch
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import albumentations as A
 import numpy as np
 from transformers import SegformerForSemanticSegmentation
 
-from src.constants.category_id import PALLETE, CATEGORY_ID
+from src.base_model import BaseModel
 
-class SegFormerModel:
+class SegFormerModel(BaseModel):
     def __init__(self, model_path:str="src/model/segformer-b3-finetuned-foodseg103"):
         """
         Initialize the SegFormerModel with the given model path.
@@ -90,50 +88,3 @@ class SegFormerModel:
         )
         predicted = upsampled_logits.argmax(dim=1)[0].cpu().numpy()
         return predicted
-    
-    def generate_pallete_for_mask(self, mask):
-            color_seg = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
-            for label, color in PALLETE.items():
-                color_seg[mask == label, :] = color
-            return color_seg
-
-    def apply_mask_on_image(self, image, mask, alpha=0.5):
-        print(image.shape, mask.shape)
-        imagem_original_float = image.astype(np.float32) / 255.0
-        imagem_mascara_float = mask.astype(np.float32) / 255.0
-        imagem_overlay = (1 - alpha) * imagem_original_float + alpha * imagem_mascara_float
-        imagem_overlay = (imagem_overlay * 255).astype(np.uint8)
-        return imagem_overlay
-
-    def preview_image_segmentation(self, image:np.ndarray) -> None:
-        """
-        Preview the segmentation of the given image using the SegFormer model.
-
-        Parameters
-        ----------
-            image : np.ndarray 
-                Input image in the form of a NumPy array.
-        """
-        
-        
-        original_image = image.copy()
-        mask = self.predict_segmentation_mask(image)
-        color_seg = self.generate_pallete_for_mask(mask)
-        blend = self.apply_mask_on_image(image, color_seg)
-        fig, axs = plt.subplots(1, 2, figsize=(16, 12))
-
-        axs[0].set_title('Original Image')
-        axs[1].set_title('Annotation Mask')
-        axs[0].axis('off')
-        axs[1].axis('off')
-        axs[0].imshow(original_image)
-        axs[1].imshow(blend)
-        unique_labels = np.unique(mask)
-        patches = [
-            mpatches.Patch(
-                color=np.array(PALLETE[label])/255,
-                label=CATEGORY_ID.get(label, f'Class {label}')
-            )
-            for label in unique_labels if label in CATEGORY_ID]
-        axs[1].legend(handles=patches, bbox_to_anchor=(1.05, 1), loc='upper left')
-    
