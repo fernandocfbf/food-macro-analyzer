@@ -4,47 +4,25 @@ import matplotlib.patches as mpatches
 
 from src.segment_anything_model import SAMModel
 from src.b3_seg_former_model import SegFormerModel
+from src.base_model import BaseModel
 
-from src.utils.visualization import generate_pallete_for_mask, apply_mask_on_image
 from src.constants.category_id import PALLETE, CATEGORY_ID
 
-class EnhancedModel:
+class SegmentEnhancedModel(BaseModel):
     """
     Combines SegFormer and SAM outputs to generate enhanced segmentation masks.
     """
     def __init__(self, segformer_model_path:str="src/model/segformer-b3-finetuned-foodseg103", sam_model_type:str="vit_h") -> None:
-        self.segformer_model = self._load_segformer_model(segformer_model_path)
-        self.sam_model = self._load_sam_model(sam_model_type)
+        self.segformer_model_path = segformer_model_path
+        self.sam_model_type = sam_model_type
+        self._load_model()
 
-    def _load_segformer_model(self, segformer_model_path) -> SegFormerModel:
-        """
-        Load the SegFormer model.
+    def _preprocess_image(self, image:np.ndarray) -> np.ndarray:
+        return image
 
-        Parameters
-        ----------
-        segformer_model_path : str
-            Path to the SegFormer model.
-
-        Returns
-        -------
-        SegFormerModel
-        """
-        return SegFormerModel(segformer_model_path)
-
-    def _load_sam_model(self, sam_model_type) -> SAMModel:
-        """
-        Load the SAM model.
-
-        Parameters
-        ----------
-        sam_model_type : str
-            Identifier for the SAM model type.
-
-        Returns
-        -------
-        SAMModel
-        """
-        return SAMModel(sam_model_type)
+    def _load_model(self) -> None:
+        self.segformer_model = SegFormerModel(self.segformer_model_path)
+        self.sam_model = SAMModel(self.sam_model_type)
     
     def _sort_sam_masks(self, sam_masks_list:list[dict]) -> list[np.ndarray]:
         """
@@ -92,27 +70,10 @@ class EnhancedModel:
         return base_mask
     
     def predict_segmentation_mask(self, image:np.ndarray) -> np.ndarray:
-        """
-        Predict enhanced segmentation mask from input image.
-
-        Parameters
-        ----------
-        image : np.ndarray
-            Input RGB image.
-
-        Returns
-        -------
-        np.ndarray
-            Final enhanced segmentation mask.
-        """
         segformer_mask = self.segformer_model.predict_segmentation_mask(image.copy())
         sam_masks_list = self.sam_model.predict_segmentation_mask(image.copy())
         sam_masks_list_sorted = self._sort_sam_masks(sam_masks_list)
         return self._enhance_segformer_mask(segformer_mask, sam_masks_list_sorted)
-    
-    def generate_annotated_image(self, image:np.ndarray, mask:np.ndarray) -> np.ndarray:
-        color_seg = generate_pallete_for_mask(mask)
-        return apply_mask_on_image(image, color_seg)
     
     def preview_full_pipeline(self, image:np.ndarray) -> None:
         original_image = image.copy()
@@ -157,34 +118,3 @@ class EnhancedModel:
             )
             for label in enhanced_unique_labels if label in CATEGORY_ID]
         axs[3].legend(handles=patches, bbox_to_anchor=(1.05, 1), loc='upper left')
-
-
-    def preview_image_segmentation(self, image:np.ndarray, mask:np.ndarray) -> None:
-        """
-        Display the input image alongside its predicted segmentation.
-
-        Parameters
-        ----------
-        image : np.ndarray
-            Input image.
-        mask : np.ndarray
-            Segmentation mask with class IDs.
-        """
-        original_image = image.copy()
-        blend = self.generate_annotated_image(image, mask)
-        fig, axs = plt.subplots(1, 2, figsize=(16, 12))
-
-        axs[0].set_title('Original Image')
-        axs[1].set_title('Annotation Mask')
-        axs[0].axis('off')
-        axs[1].axis('off')
-        axs[0].imshow(original_image)
-        axs[1].imshow(blend)
-        unique_labels = np.unique(mask)
-        patches = [
-            mpatches.Patch(
-                color=np.array(PALLETE[label])/255,
-                label=CATEGORY_ID.get(label, f'Class {label}')
-            )
-            for label in unique_labels if label in CATEGORY_ID]
-        axs[1].legend(handles=patches, bbox_to_anchor=(1.05, 1), loc='upper left')

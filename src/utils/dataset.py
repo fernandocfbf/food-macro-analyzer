@@ -26,6 +26,8 @@ def load_foodseg103_splits(sample_size:int=None, random_state:Optional[int]=42) 
     splits = [ds for ds in food_seg_103.values()]
     merged_dataset = concatenate_datasets(splits)
     merged_dataset = merged_dataset.shuffle(seed=random_state)
+    if sample_size is not None:
+        merged_dataset = merged_dataset.select(range(sample_size))
 
     train_test = merged_dataset.train_test_split(test_size=0.3, seed=42)
     val_test = train_test['test'].train_test_split(test_size=0.5, seed=42)
